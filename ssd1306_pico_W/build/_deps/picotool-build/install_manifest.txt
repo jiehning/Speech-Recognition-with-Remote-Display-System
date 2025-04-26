@@ -1,5 +1,0 @@
-/root/pico/ssd1306_tcp_test/build/_deps/picotool/picotool
-/root/pico/ssd1306_tcp_test/build/_deps/picotool/picotoolTargets.cmake
-/root/pico/ssd1306_tcp_test/build/_deps/picotool/picotoolTargets-release.cmake
-/root/pico/ssd1306_tcp_test/build/_deps/picotool/picotoolConfig.cmake
-/root/pico/ssd1306_tcp_test/build/_deps/picotool/picotoolConfigVersion.cmake
