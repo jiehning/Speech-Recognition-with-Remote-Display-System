@@ -1,0 +1,42 @@
+1. 安裝工具
+ $ sudo apt update
+ $ sudo apt install cmake gcc-arm-none-eabi build-essential git
+
+2. 安裝pico-SDK及pico-examples
+ $ git clone https://github.com/raspberrypi/pico-sdk.git --branch develop
+ $ cd pico-sdk
+ $ git submodule update --init
+ $ cd ..
+ $ git clone https://github.com/raspberrypi/pico-examples.git --branch develop
+
+3. Building an SDK example
+ $ mkdir mytest
+ $ cd mytest
+ $ cp ../pico-sdk/external/pico_sdk_import.cmake .
+ $ cp ../pico-examples/pico_w/wifi/lwipopts_examples_common.h lwipopts.h
+ $ mkdir build
+ 
+建立完整檔案如下:
+├── pico-sdk/        
+├── pico-examples/
+└── pico_W_ssd1306/          
+    ├── CMakeLists.txt
+    ├── pico_sdk_import.cmake (從官方example複製)
+	├── lwipopts.h  (從官方example複製) 
+	├── font.h
+	├── ssd1306.h
+	├── ssd1306.c
+	├── tcp_server.h
+	├── tcp_server.c
+	├── main.c
+	└── build/
+		
+$ cd build
+$ cmake .. -DPICO_SDK_PATH=/root/pico/pico-sdk -DPICO_BOARD=pico_w
+
+$ make
+...
+[100%] Built target ssd1306_tcp_test
+
+4. 在pico上執行程式:
+ 將在build/內產生的.uf2檔，複製到pico上
