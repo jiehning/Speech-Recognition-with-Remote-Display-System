@@ -44,7 +44,7 @@
 ### 設備連接
 請參考以下接線圖：
 
-![接線圖](docs/wiring.png)
+![接線圖](wiring.png)
 
 ### 系統建置
 
@@ -56,8 +56,8 @@
 - MCU 架構：`ARMv6-M`
 
 ### 架構圖
-![系統架構圖1](docs/architecture_1.png)
-![系統架構圖2](docs/architecture_2.png)
+![系統架構圖1](architecture_1.png)
+![系統架構圖2](architecture_2.png)
 
 ---
 
