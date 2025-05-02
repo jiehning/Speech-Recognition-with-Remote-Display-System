@@ -22,7 +22,7 @@
 - 使用 INMP441 全向麥克風將音訊輸入至 Raspberry Pi (本地)
 - 將語音轉文字後存檔
 - 透過 I2C 傳送至本地端 OLED 
-- 透過 Wi-Fi 傳送至遠端 MCU OLED
+- 透過 Wi-Fi 傳送至遠端 MCU OLED (TCP server)
 
 ### OLED顯示
 - 可顯示英文字幕
