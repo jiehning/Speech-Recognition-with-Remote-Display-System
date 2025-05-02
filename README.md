@@ -21,10 +21,11 @@
 ### 遠端字幕
 - 使用 INMP441 全向麥克風將音訊輸入至 Raspberry Pi (本地)
 - 將語音轉文字後存檔
-- 透過 I2C 傳送至本地端 OLED 
+- 透過 I2C 傳送至本地端 SSD1306 OLED 
 - 透過 Wi-Fi 傳送至遠端 MCU OLED (TCP server)
 
 ### OLED顯示
+- 本地端為Linux character device driver，遠端為MCU裸機開發
 - 可顯示英文字幕
 - 透過ioctl()可控制螢幕亮度
 - 透過mmap()模擬MMIO機制，搭配ioctl()可讓使用者輸入bitmap圖片並顯示於OLED
