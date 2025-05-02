@@ -1,33 +1,36 @@
 #ifndef _SSD1306_H_
 #define _SSD1306_H_
 
-#include <linux/types.h>       // uint8_t
+#include <linux/types.h>	   // uint8_t
 #include <linux/i2c.h>         // struct i2c_client
-#include <linux/kernel.h>      // printk
+#include <linux/kernel.h>      // printk 
 #include <linux/slab.h>        // kmalloc/kfree
 #include <linux/uaccess.h>     // user-space copy_from_user
 
-#define SSD1306_CMD 0x00    //è¡¨ç¤ºè¦é€command
-#define SSD1306_DATA 0x40   //è¡¨ç¤ºè¦é€data
-#define SET_CONTRAST 0x81   //è¨­å®šå°æ¯”åº¦ï¼Œæœ€äº®ç‚º0xff
-#define SET_ENTIRE_ON 0xA4  //é¡¯ç¤ºå…¨éƒ¨çš„RAMå…§å®¹
-#define SET_NORM_DISP 0xA6  //æ­£å¸¸é¡¯ç¤ºï¼Œnot inverted
-#define SET_DISP 0xAE       //è¨­å®šé¡¯ç¤ºé–‹å•Ÿæˆ–é—œé–‰ï¼Œé è¨­0xAEç‚ºé—œé–‰ï¼Œ (0xAE | 0x01)=0xAF ç‚ºé–‹å•Ÿ
-#define SET_MEM_ADDR 0x20   //è¨­å®šè¨˜æ†¶é«”ä½ç½®æ¨¡å¼ï¼ŒæŽ¥è‘—è¼¸å…¥0x00è¡¨ç¤ºæ°´å¹³mode
+#define SSD1306_CMD 0x00    //ªí¥Ü­n°ecommand
+#define SSD1306_DATA 0x40   //ªí¥Ü­n°edata
+#define SET_CONTRAST 0x81   //³]©w¹ï¤ñ«×¡A³Ì«G¬°0xff
+#define SET_ENTIRE_ON 0xA4  //Åã¥Ü¥þ³¡ªºRAM¤º®e
+#define SET_NORM_DISP 0xA6  //¥¿±`Åã¥Ü¡Anot inverted
+#define SET_DISP 0xAE       //³]©wÅã¥Ü¶}±Ò©ÎÃö³¬¡A¹w³]0xAE¬°Ãö³¬¡A (0xAE | 0x01)=0xAF ¬°¶}±Ò
+#define SET_MEM_ADDR 0x20   //³]©w°O¾ÐÅé¦ì¸m¼Ò¦¡¡A±µµÛ¿é¤J0x00ªí¥Ü¤ô¥­mode
 #define SET_COL_ADDR 0x21
 #define SET_PAGE_ADDR 0x22
-#define SET_DISP_SATRT_LINE 0x40 //è¨­å®šé¡¯ç¤ºå™¨çš„èµ·å§‹è¡Œï¼Œ128x32å°±æœ‰32è¡Œï¼Œé€šå¸¸è¨­0è¡¨ç¤ºå¾žç¬¬ä¸€è¡Œé–‹å§‹é¡¯ç¤º
-#define SET_SEG_REMAP 0xA0  //è¨­å®šæ°´å¹³ç¿»è½‰ï¼Œè¦ç¿»è½‰: SET_SEG_REMPA | 0x01ï¼Œä¸ç¿»è½‰: SET_SEG_REMPA | 0x00ï¼Œè¨­å®šç¿»è½‰æ‰æ˜¯å­—é«”çš„æ­£å¸¸é¡¯ç¤º
-#define SET_COM_OUT_DIR 0xC0     //è¨­å®šåž‚ç›´ç¿»è½‰
-#define SET_MUX_RATIO 0xA8      //è¨­å®šé¡¯ç¤ºè¡Œæ•¸ï¼Œå°æ–¼128x32ï¼Œæœƒè¨­(32-1)ï¼Œå› ç‚ºindexå¾ž0é–‹å§‹
-#define SET_DISP_OFFSET 0xD3    //è¨­å®šé¡¯ç¤ºå…§å®¹çš„ä½ç½®ï¼Œé€šå¸¸è¨­0
-#define SET_COM_PIN_CFG 0xDA    //è¨­å®šæŽƒæCOMçš„æ–¹å‘ï¼Œæ±ºå®šåž‚ç›´æˆ–æ°´å¹³
-#define SET_DISP_CLK_DIV 0xD5   //è¨­å®šæ™‚é˜åˆ†é »ï¼Œå°‡åŽŸæœ¬çš„clockè¨Šè™Ÿé™ä½Žé »çŽ‡çš„è™•ç†ï¼Œä»¥ç©©å®šè¨Šè™Ÿï¼Œ0x80ç‚ºé è¨­
-#define SET_PRECHARGE 0xD9      //è¨­å®šé å……é›»æ™‚é–“ï¼Œå¤–éƒ¨é›»æºè¨­0x22ï¼Œå…§éƒ¨è¨­0xF1
-#define SET_VCOM_DESEL 0xDB     //è¨­å®šVCOMçš„é¤˜é‡ï¼Œå½±éŸ¿é¡¯ç¤ºå™¨çš„é»‘ç™½å°æ¯”ï¼Œå¸¸è¨­0x30æˆ–0x40ä¾†èª¿æ•´VCOMçš„é›»å£“é–¾å€¼
-#define SET_CHARGE_PUMP 0x8D    //å•Ÿå‹•charge pumpè¨­å®šï¼Œ0x10è¡¨ç¤ºå¤–éƒ¨ï¼Œ0x14è¡¨ç¤ºå…§éƒ¨ï¼Œé€šå¸¸è¨­å®š0x14
+#define SET_DISP_SATRT_LINE 0x40 //³]©wÅã¥Ü¾¹ªº°_©l¦æ¡A128x32´N¦³32¦æ¡A³q±`³]0ªí¥Ü±q²Ä¤@¦æ¶}©lÅã¥Ü
+#define SET_SEG_REMAP 0xA0  //³]©w¤ô¥­Â½Âà¡A­nÂ½Âà: SET_SEG_REMPA | 0x01¡A¤£Â½Âà: SET_SEG_REMPA | 0x00¡A³]©wÂ½Âà¤~¬O¦rÅéªº¥¿±`Åã¥Ü
+#define SET_COM_OUT_DIR 0xC0     //³]©w««ª½Â½Âà
+#define SET_MUX_RATIO 0xA8      //³]©wÅã¥Ü¦æ¼Æ¡A¹ï©ó128x32¡A·|³](32-1)¡A¦]¬°index±q0¶}©l
+#define SET_DISP_OFFSET 0xD3    //³]©wÅã¥Ü¤º®eªº¦ì¸m¡A³q±`³]0
+#define SET_COM_PIN_CFG 0xDA    //³]©w±½´yCOMªº¤è¦V¡A¨M©w««ª½©Î¤ô¥­
+#define SET_DISP_CLK_DIV 0xD5   //³]©w®ÉÄÁ¤ÀÀW¡A±N­ì¥»ªºclock°T¸¹­°§CÀW²vªº³B²z¡A¥HÃ­©w°T¸¹¡A0x80¬°¹w³]
+#define SET_PRECHARGE 0xD9      //³]©w¹w¥R¹q®É¶¡¡A¥~³¡¹q·½³]0x22¡A¤º³¡³]0xF1
+#define SET_VCOM_DESEL 0xDB     //³]©wVCOMªº¾l¶q¡A¼vÅTÅã¥Ü¾¹ªº¶Â¥Õ¹ï¤ñ¡A±`³]0x30©Î0x40¨Ó½Õ¾ãVCOMªº¹qÀ£ìH­È
+#define SET_CHARGE_PUMP 0x8D    //±Ò°Êcharge pump³]©w¡A0x10ªí¥Ü¥~³¡¡A0x14ªí¥Ü¤º³¡¡A³q±`³]©w0x14
  
+#define OLED_FB_SIZE 4096 //framebuffer size = one page size
 
+#define STRING 0x01
+#define FIG 0x02
 
 typedef struct {
     uint8_t width; 		/**< width of display */
@@ -39,16 +42,17 @@ typedef struct {
     size_t bufsize;		/**< buffer size */
 } ssd1306_t;
 
-
+void ssd1306_send_cmd(ssd1306_t *p, uint8_t cmd);
 int ssd1306_init(ssd1306_t *p, uint16_t width, uint16_t height, uint8_t address, struct i2c_client *client);
 void ssd1306_deinit(ssd1306_t *p);
 void ssd1306_poweroff(ssd1306_t *p);
 void ssd1306_poweron(ssd1306_t *p);
 void ssd1306_contrast(ssd1306_t *p, uint8_t val);
 void ssd1306_invert(ssd1306_t *p, uint8_t inv);
-void ssd1306_show(ssd1306_t *p);
-void ssd1306_clear(ssd1306_t *p);
+void ssd1306_show(ssd1306_t *p, int mode);
 
+void ssd1306_clear(ssd1306_t *p);
+void ssd1306_clear_frambuf(u8 *framebuffer);
 void ssd1306_clear_pixel(ssd1306_t *p, uint32_t x, uint32_t y);
 void ssd1306_draw_pixel(ssd1306_t *p, uint32_t x, uint32_t y);
 

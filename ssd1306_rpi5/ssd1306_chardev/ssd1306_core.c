@@ -6,7 +6,7 @@
 #include "ssd1306.h"
 #include "font.h"
 
-
+extern u8 *oled_fb;
 
 //command function
 void ssd1306_send_cmd(ssd1306_t *p, uint8_t cmd) {
@@ -32,7 +32,7 @@ int ssd1306_init(ssd1306_t *p, uint16_t width, uint16_t height, uint8_t address,
 		return -ENOMEM;
 	}
 	
-	++(p->buffer); //keep the first byte for the control command
+	++(p->buffer); //«O¯d²Ä¤@­Óbyteµ¹control command
 
 	
     ssd1306_send_cmd(p, SET_DISP); // Display OFF
@@ -50,7 +50,7 @@ int ssd1306_init(ssd1306_t *p, uint16_t width, uint16_t height, uint8_t address,
 	ssd1306_send_cmd(p, 0x00);
 	
 	ssd1306_send_cmd(p, SET_CHARGE_PUMP);
-	ssd1306_send_cmd(p, 0x14); //set 0x14 for internal power
+	ssd1306_send_cmd(p, 0x14); //³q±`¥Î0x14(ªí¥Ü¤º³¡¹q·½)
 
 
 	ssd1306_send_cmd(p, SET_SEG_REMAP|0x01);
@@ -63,7 +63,7 @@ int ssd1306_init(ssd1306_t *p, uint16_t width, uint16_t height, uint8_t address,
 	ssd1306_send_cmd(p, 0xff);
 	
 	ssd1306_send_cmd(p, SET_PRECHARGE);
-	ssd1306_send_cmd(p, 0xF1); //set 0xF1 for internal power
+	ssd1306_send_cmd(p, 0xF1); //¤º³¡¹q·½³]0xF1
 	
 	ssd1306_send_cmd(p, SET_VCOM_DESEL);
 	ssd1306_send_cmd(p, 0x30);
@@ -78,8 +78,9 @@ int ssd1306_init(ssd1306_t *p, uint16_t width, uint16_t height, uint8_t address,
     ssd1306_send_cmd(p, 0x00);
 	
 	ssd1306_clear(p);
-
-    return 0; 
+//	ssd1306_draw_string(p, 0, 0, "Hello, OLED");
+//	ssd1306_show(p);
+   return 0; 
 }
 
 void ssd1306_deinit(ssd1306_t *p){
@@ -106,12 +107,16 @@ void ssd1306_clear(ssd1306_t *p){
 	memset(p->buffer, 0, p->bufsize);
 }
 
-void ssd1306_show(ssd1306_t *p) {
+void ssd1306_clear_frambuf(u8 *framebuffer){
+	memset(framebuffer+1, 0x00, OLED_FB_SIZE);
+}
 
-    /*
-    0 è¡¨ç¤ºå¾žç¬¬ 0 æ¬„ï¼ˆæˆ–é ï¼‰é–‹å§‹
-    p->width - 1 è¡¨ç¤ºæœ€å¾Œä¸€å€‹colçš„index(å¯«åˆ°æœ€å¾Œä¸€åˆ—)
-    p->pages - 1 è¡¨ç¤ºæœ€å¾Œä¸€å€‹ pageï¼ˆå¯«åˆ°æœ€å¾Œä¸€å€‹pageï¼‰
+void ssd1306_show(ssd1306_t *p, int mode) {
+
+	/*
+    0 ªí¥Ü±q²Ä 0 Äæ¡]©Î­¶¡^¶}©l
+    p->width - 1 ªí¥Ü³Ì«á¤@­Ócolªºindex(¼g¨ì³Ì«á¤@¦C)
+    p->pages - 1 ªí¥Ü³Ì«á¤@­Ó page¡]¼g¨ì³Ì«á¤@­Ópage¡^
     */
 
 	ssd1306_send_cmd(p, SET_COL_ADDR);
@@ -121,15 +126,32 @@ void ssd1306_show(ssd1306_t *p) {
 	ssd1306_send_cmd(p, SET_PAGE_ADDR);
 	ssd1306_send_cmd(p, 0);
 	ssd1306_send_cmd(p, p->pages-1);
+	
+	struct i2c_msg msg;
 
-    *(p->buffer-1)=SSD1306_DATA;
+	switch (mode){
+		case STRING:
+			*(p->buffer-1) = SSD1306_DATA;			
+			msg = (struct i2c_msg) {
+				.addr = p->client->addr,
+				.flags = 0,
+				.len = p->bufsize + 1,
+				.buf = p->buffer -1,
+			};
+			break;
+		case FIG:
+			oled_fb[0] = SSD1306_DATA;
+    			msg = (struct i2c_msg) {
+				.addr = p->client->addr,
+				.flags = 0,
+				.len = p->bufsize +1,
+				.buf = oled_fb,
+    			};
+			break;
+		default:
+			return;
+	}
 
-    struct i2c_msg msg = {
-	.addr = p->client->addr,
-	.flags = 0,
-	.len = p->bufsize +1,
-	.buf = p->buffer -1,
-    };
     int ret = i2c_transfer(p->client->adapter, &msg, 1);
     if (ret < 0) {
         pr_err("Failed to write to SSD1306 display\n");
@@ -141,16 +163,16 @@ void ssd1306_clear_pixel(ssd1306_t *p, uint32_t x, uint32_t y){
     p->buffer[(y>>3) * p->width + x] &= ~(1<<(y & 7));
 }
 
-/*
-x + p->width * (y >> 3)
-é€™æ˜¯è¨ˆç®—å‡ºç›®æ¨™pixel(x, y) åœ¨ buffer é™£åˆ—ä¸­çš„indexã€‚
-y >> 3 ç­‰æ–¼ y / 8ï¼Œç®—å‡º y æ‰€åœ¨çš„ page ç·¨è™Ÿ
-p->width * (y >> 3) è¡¨ç¤ºç›®å‰æ˜¯ç¬¬å¹¾å€‹ pageï¼Œæ¯é æœ‰ width å€‹ byte
-åŠ ä¸Š xï¼Œå°±å®šä½åˆ°é€™å€‹ page çš„ç¬¬ x å€‹ columnï¼Œå³ bufferä¸­çš„ç¬¬å¹¾å€‹byt    eä½å€
+/*x + p->width * (y >> 3)
+³o¬O­pºâ¥X ¥Ø¼Ð¹³¯À (x, y) ¦b buffer °}¦C¤¤ªº¯Á¤Þ­È¡C
+y >> 3 µ¥©ó y / 8¡Aºâ¥X y ©Ò¦bªº page ½s¸¹
+p->width * (y >> 3) ªí¥Ü¥Ø«e¬O²Ä´X­Ó page¡A¨C­¶¦³ width ­Ó byte
+¥[¤W x¡A´N©w¦ì¨ì³o­Ó page ªº²Ä x ­Ó column¡A§Y buffer ¤¤ªº¥¿½T byte ¦ì§}
 
-1 << (y & 7) é€™æ˜¯è¦è¨­äº®çš„ bitã€‚
-y & 7 å°±æ˜¯ y % 8ï¼Œå› ç‚ºæ¯ byte æŽ§åˆ¶ 8 å€‹ pixelï¼Œæˆ‘å€‘è¦çŸ¥é“æ˜¯å“ªä¸€å€‹     bit
-å¾žç¬¬0å€‹bité–‹å§‹ç®—
+1 << (y & 7)
+³o¬O­n³]«Gªº bit¡C
+y & 7 ´N¬O y % 8¡A¦]¬°¨C byte ±±¨î 8 ­Ó pixel¡A§Ú­Ì­nª¾¹D¬O­þ¤@­Ó bit
+±q²Ä0­Óbit¶}©lºâ
 */
 
 
@@ -161,31 +183,28 @@ void ssd1306_draw_pixel(ssd1306_t *p, uint32_t x, uint32_t y){
 }
 
 /*
-font[0] = å­—åž‹é«˜åº¦ï¼ˆpixelï¼‰ 8
-font[1] = å­—åž‹å¯¬åº¦ï¼ˆpixelï¼‰ 5
-font[2] = å­—è·Ÿå­—ä¹‹é–“çš„space
-font[3] = å­—å…ƒç¯„åœèµ·å§‹ASCIIç·¨ç¢¼ï¼ˆ32ï¼‰
-font[4] = å­—å…ƒç¯„åœçµæŸç·¨ç¢¼ï¼ˆ126ï¼‰
-font[5...] = æ¯å€‹å­—å…ƒçš„é»žé™£åœ–è³‡æ–™
+font[0] = ¦r«¬°ª«×¡]pixel¡^ 8
+font[1] = ¦r«¬¼e«×¡]pixel¡^ 5
+font[2] = ¦r¸ò¦r¤§¶¡ªºspace
+font[3] = ¦r¤¸½d³ò°_©lASCII½s½X¡]32¡^
+font[4] = ¦r¤¸½d³òµ²§ô½s½X¡]126¡^
+font[5...] = ¨C­Ó¦r¤¸ªºÂI°}¹Ï¸ê®Æ
 */
 
 
 
-//draw one char
+//³B²z¤@­Ó¦r¤¸
 void ssd1306_draw_char_with_font(ssd1306_t *p, uint32_t x, uint32_t y, const uint8_t *font, char c) {
     if(c<font[3]||c>font[4])
-        return; //return if exceed the range of ASCII
+        return; //¶W¥XASCIIªº½d³ò´Nreturn
 
-    //uint32_t parts_per_line=(font[0]>>3)+((font[0]&7)>0);
-    /*
-    è¨ˆç®—ã€Œé€™å€‹å­—åž‹ä¸€å€‹å­—å…ƒçš„é»žé™£ï¼Œåœ¨åž‚ç›´æ–¹å‘è¦ç”¨å¹¾å€‹ byte ä¾†è¡¨ç¤ºã€
-    parts_per_line = height / 8 + (height % 8 != 0) è‹¥å¼•ç”¨çš„å­—åž‹ç‚º8x5ï¼Œ8å‰›å¥½æ•´é™¤ï¼Œæ‰€ä»¥1å€‹å­—åž‹åœ¨åž‚ç›´æ–¹å‘ç”¨äº†ä¸€å€‹byte
-    */
-	//æ¯æ¬¡è™•ç†å­—å…ƒçš„ä¸€è¡Œpixelï¼ˆåž‚ç›´æ–¹å‘ï¼‰ï¼Œç¸½å…±æœƒåš font[1] æ¬¡ï¼ˆå³å­—å¯¬çš„pixelæ•¸ï¼‰
+    //uint32_t parts_per_line=(font[0]>>3)+((font[0]&7)>0);//­pºâ¡u³o­Ó¦r«¬¤@­Ó¦r¤¸ªºÂI°}¡A¦b««ª½¤è¦V­n¥Î´X­Ó byte ¨Óªí¥Ü¡v
+    //parts_per_line = height / 8 + (height % 8 != 0) ­Y¤Þ¥Îªº¦r«¬¬°8x5¡A8­è¦n¾ã°£¡A©Ò¥H1­Ó¦r«¬¦b««ª½¤è¦V¥Î¤F¤@­Óbyte
+
+    //¨C¦¸³B²z¦r¤¸ªº¤@¦æ¹³¯À¡]column¡^¡AÁ`¦@·|°µ font[1] ¦¸¡]§Y¦r¼eªº¹³¯À¼Æ¡^
     for(uint8_t col=0; col<font[1]; col++) { // width
         uint32_t font_idx= 5 + (c-font[3]) * font[1] + col;
-		
-		//ç¬¬0åˆ—(å‰äº”å€‹è³‡è¨Š)+å¾ž32æ•¸ä¾†ç¬¬å¹¾å€‹å­—å…ƒ*å­—åž‹å¯¬åº¦*é«˜åº¦å¹¾å€‹byte + ç¬¬å¹¾å€‹col
+
         uint8_t line=font[font_idx];
         for(int8_t j=0; j<8; j++, line>>=1) {
                 if(line & 1)
@@ -194,13 +213,13 @@ void ssd1306_draw_char_with_font(ssd1306_t *p, uint32_t x, uint32_t y, const uin
     }
 }
 
-//draw one char with a given font
+//³B²z¤@­Óµ¹©w¦rÅéªíªº¦r¤¸
 void ssd1306_draw_char(ssd1306_t *p, uint32_t x, uint32_t y, char c){
 	ssd1306_draw_char_with_font(p, x, y, font_8x5, c);
 } 
 
 
-//draw string 
+//³B²z¦r¦ê 
 void ssd1306_draw_string_with_font(ssd1306_t *p, uint32_t x, uint32_t y, const uint8_t *font, const char *s){
     uint32_t cursor_x = x;
     uint32_t cursor_y = y;
@@ -235,7 +254,7 @@ void ssd1306_draw_string_with_font(ssd1306_t *p, uint32_t x, uint32_t y, const u
 } 
 
 
-//draw string with a given font
+//³B²zµ¹©w¦r«¬ªº¦r¦ê
 void ssd1306_draw_string(ssd1306_t *p,uint32_t x, uint32_t y, const char *s){
 	ssd1306_draw_string_with_font(p, x, y, font_8x5, s);
 }

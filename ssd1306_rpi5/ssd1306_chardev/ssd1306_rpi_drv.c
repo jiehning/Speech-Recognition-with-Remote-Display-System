@@ -7,7 +7,9 @@
 #include <linux/uaccess.h>	//copy_from_user
 #include <linux/i2c.h>		//struct i2c_client, i2c_add_driver
 #include <linux/cdev.h>		//struct cdev, cdev_init, cdev_add
+#include <linux/mm.h>		//vm_area_struct, remap_pfn_range
 #include "ssd1306.h"
+#include "ssd1306_mmap.h"
 
 #define SUCCESS 0
 #define DEVICE_NAME "ssd1306"
@@ -15,6 +17,10 @@
 #define SSD1306_WIDTH 128
 #define SSD1306_HEIGHT 32
 #define SSD1306_ADDR 0x3C
+
+static int contrast;
+
+u8 *oled_fb = NULL; //framebuffer
 
 static struct class *oled_class=NULL; 
 static ssd1306_t ssd1306_dev;
@@ -34,8 +40,8 @@ static int oled_open(struct inode *inode, struct file *file)
 
 static int oled_release(struct inode *inode, struct file *file)
 {
-    ssd1306_clear(&ssd1306_dev);
-    ssd1306_show(&ssd1306_dev);
+   // ssd1306_clear(&ssd1306_dev);
+   // ssd1306_show(&ssd1306_dev);
     printk("oled_release()\n");
 
     return SUCCESS;
@@ -62,19 +68,62 @@ static ssize_t oled_write(struct file *filp, const char *buff, size_t len, loff_
     }	
     data[len] = '\0';
     ssd1306_clear(&ssd1306_dev);
-    ssd1306_show(&ssd1306_dev);
+//    ssd1306_show(&ssd1306_dev);
     ssd1306_draw_string(&ssd1306_dev, 0, 0, data);
-    ssd1306_show(&ssd1306_dev);
+    ssd1306_show(&ssd1306_dev, STRING);
     printk("oled_write()\n");
     
     return len;
 }
+
+static int oled_mmap(struct file *file, struct vm_area_struct *vma){
+	unsigned long size = vma->vm_end - vma->vm_start; //virtual memory
+	
+	if (size > OLED_FB_SIZE){
+		return -EINVAL;
+	}
+
+	if(remap_pfn_range(vma, vma->vm_start, virt_to_phys(oled_fb) >> PAGE_SHIFT, size, vma->vm_page_prot)){
+		return -EAGAIN;
+	}
+	printk("oled_mmap() succeed\n");
+	return 0;
+} 
+
+static long oled_ioctl(struct file *file, unsigned int cmd, unsigned long arg){
+	switch (cmd){
+		case OLED_CLEAR: //refresh screen
+			ssd1306_clear(&ssd1306_dev);
+			ssd1306_show(&ssd1306_dev, STRING);
+			break;
+		case OLED_CONTRAST:
+			if (copy_from_user(&contrast, (int __user*)arg, sizeof(int))!=0){
+				return -EFAULT;
+			}
+			ssd1306_send_cmd(&ssd1306_dev, SET_CONTRAST);
+			ssd1306_send_cmd(&ssd1306_dev, contrast);
+			break;
+		case OLED_CLEAR_FB:
+			ssd1306_clear_frambuf(oled_fb);
+			break;
+		case OLED_MMAP_DRAW:
+			ssd1306_show(&ssd1306_dev, FIG);
+			break;		
+		default:
+			return -EINVAL;
+	}
+	printk("oled_ioctl(): cmd = %u, arg = %lx\n", cmd, arg);
+	return 0;
+}
+
 
 static struct file_operations fops = {
     .owner = THIS_MODULE,		//avoid this module to be removed while being opened by user space, but the module can be removed after calling release()
     .write = oled_write,
     .open = oled_open,
     .release = oled_release,
+	.mmap = oled_mmap,
+	.unlocked_ioctl = oled_ioctl,
 };
 
 //i2c driver probe/remove/detect
@@ -113,12 +162,22 @@ static int ssd1306_probe(struct i2c_client *client){
     oled_client = client;
     printk(KERN_INFO "get i2c_client, client name = %s, addr=0x%x\n", oled_client->name, oled_client->addr);
     printk(KERN_INFO "get i2c_adapter, adapter name=%s\n", oled_client->adapter->name);
+	
+	oled_fb = kmalloc(OLED_FB_SIZE, GFP_KERNEL);
+	if (!oled_fb){
+		printk("Failed to allocate framebuffer\n");
+		return -ENOMEM;
+	}
 
     return SUCCESS;
 }
 
+EXPORT_SYMBOL(oled_fb);
+
 static void ssd1306_remove(struct i2c_client *client){
     
+	kfree(oled_fb);
+	oled_fb = NULL;
     device_destroy(oled_class, devid); 
     class_destroy(oled_class); 
 
